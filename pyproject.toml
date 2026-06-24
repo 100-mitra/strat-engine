@@ -61,6 +61,15 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "tests.py"]
 testpaths = ["tests", "apps", "engine"]
 addopts = "-ra -q"
+# Message-scoped: silence known third-party plotting noise from QuantStats/seaborn/matplotlib
+# tearsheet rendering without hiding our own warnings.
+filterwarnings = [
+    "ignore:.*vert.*was deprecated.*",
+    "ignore:.*set_bad function will be deprecated.*",
+    "ignore:.*identical low and high ylims.*",
+    "ignore:.*invalid value encountered in multiply.*",
+    "ignore:.*No directory at.*",
+]
 
 [tool.coverage.run]
 branch = true
