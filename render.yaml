@@ -1,0 +1,32 @@
+# Render Blueprint — one-click deploy of the web service + managed Postgres.
+# Deploy: push to GitHub, then on render.com "New > Blueprint" and point at this repo.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Free-tier reality (2026): the web service cold-starts after ~15 min idle and the free Postgres
+# expires after ~30 days. For a persistent demo, upgrade the database to a paid instance.
+
+databases:
+  - name: stratengine-db
+    plan: free
+    databaseName: stratengine
+    user: stratengine
+
+services:
+  - type: web
+    name: stratengine
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz/
+    # Run migrations and seed the demo before the new version goes live.
+    preDeployCommand: "python manage.py migrate --noinput && python manage.py seed_demo"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stratengine-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "0"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"

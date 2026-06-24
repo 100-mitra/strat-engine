@@ -27,5 +27,6 @@ RUN SECRET_KEY=build-time DEBUG=0 python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
+# Shell-form so ${PORT} (set by Render/Railway) is expanded; defaults to 8000 for local compose.
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120"]
+CMD gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-3} --timeout 120
