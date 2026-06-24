@@ -1,6 +1,10 @@
-from django.urls import path
+from rest_framework.routers import SimpleRouter
+
+from apps.strategies.views import StrategyViewSet
 
 app_name = "strategies"
 
-# Strategy CRUD routes are added in Phase 1.
-urlpatterns: list[path] = []
+router = SimpleRouter()
+router.register("strategies", StrategyViewSet, basename="strategy")
+
+urlpatterns = router.urls

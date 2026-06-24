@@ -1,6 +1,10 @@
-from django.urls import path
+from rest_framework.routers import SimpleRouter
+
+from apps.backtests.views import BacktestViewSet
 
 app_name = "backtests"
 
-# Backtest run/detail/equity-curve/tearsheet routes are added in Phase 1.
-urlpatterns: list[path] = []
+router = SimpleRouter()
+router.register("backtests", BacktestViewSet, basename="backtest")
+
+urlpatterns = router.urls

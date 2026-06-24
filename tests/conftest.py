@@ -97,3 +97,90 @@ def rsi_trend_rules() -> dict:
             ],
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# API fixtures (Django-backed; only used by @pytest.mark.django_db tests)
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def make_user(db):
+    from django.contrib.auth.models import User
+
+    def _make(username: str):
+        return User.objects.create_user(username=username, password="pw-" + username + "-123")
+
+    return _make
+
+
+@pytest.fixture
+def make_client():
+    from rest_framework.authtoken.models import Token
+    from rest_framework.test import APIClient
+
+    def _make(user):
+        token, _ = Token.objects.get_or_create(user=user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+        return client
+
+    return _make
+
+
+@pytest.fixture
+def user(make_user):
+    return make_user("alice")
+
+
+@pytest.fixture
+def other_user(make_user):
+    return make_user("bob")
+
+
+@pytest.fixture
+def auth_client(make_client, user):
+    return make_client(user)
+
+
+@pytest.fixture
+def valid_strategy_payload() -> dict:
+    """A valid SMA(50) price-cross strategy on SPY (a symbol present in the fixtures)."""
+    return {
+        "name": "SMA50 price cross",
+        "universe": ["SPY"],
+        "rules": {
+            "entry": {
+                "logic": "AND",
+                "conditions": [
+                    {
+                        "left": {"type": "price", "field": "close"},
+                        "operator": "crosses_above",
+                        "right": {"type": "indicator", "name": "SMA", "params": {"window": 50}},
+                    }
+                ],
+            },
+            "exit": {
+                "logic": "AND",
+                "conditions": [
+                    {
+                        "left": {"type": "price", "field": "close"},
+                        "operator": "crosses_below",
+                        "right": {"type": "indicator", "name": "SMA", "params": {"window": 50}},
+                    }
+                ],
+            },
+        },
+        "position_sizing": {"type": "fixed_fraction", "fraction": 1.0},
+    }
+
+
+@pytest.fixture
+def create_strategy(auth_client, valid_strategy_payload):
+    """Create a strategy via the API and return its id."""
+
+    def _create(**overrides):
+        payload = {**valid_strategy_payload, **overrides}
+        resp = auth_client.post("/api/strategies/", payload, format="json")
+        assert resp.status_code == 201, resp.content
+        return resp.json()["id"]
+
+    return _create

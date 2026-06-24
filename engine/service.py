@@ -58,6 +58,16 @@ def _equity_points(equity_curve: pd.Series, oos_split_date) -> list[dict]:
     return points
 
 
+def compute_run_hash(data_source: DataSource, strategy_snapshot: dict, run_params: dict) -> str:
+    """Resolve a run's ``result_hash`` without backtesting, so the API can check its cache first.
+
+    Loads the data (to fingerprint the exact bars) but does not run the engine — cheap relative to
+    a full backtest. May raise DataSourceError if the symbol/range is invalid.
+    """
+    df = data_source.load(run_params["symbol"], run_params.get("start"), run_params.get("end"))
+    return compute_result_hash(strategy_snapshot, data_snapshot_hash(df), run_params)
+
+
 def execute_backtest(
     data_source: DataSource, strategy_snapshot: dict, run_params: dict
 ) -> BacktestOutput:
