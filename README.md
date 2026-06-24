@@ -73,6 +73,7 @@ These are acceptance criteria, each backed by a test.
 | **Reproducibility / idempotency** | `result_hash = sha256(ENGINE_VERSION + strategy_snapshot + data_snapshot_hash + resolved run_params)`; identical re-runs are served from cache. | `tests/test_service.py`, `tests/test_api_backtests.py` |
 | **Out-of-sample** | `oos_split_date` partitions realized returns; metrics reported per segment. | `tests/test_service.py`, `tests/test_api_backtests.py` |
 | **Reproducible after edits** | Each `Backtest` freezes a `strategy_snapshot`; editing the strategy (which bumps `version`) never changes a past backtest. | enforced by model design |
+| **Metric correctness** | CAGR is computed directly (bar-count years, not QuantStats' calendar-day divisor); the undefined first-bar return is dropped before risk metrics; in/out-of-sample metrics derive from each segment's own equity sub-series (no boundary leak). | `tests/test_metrics_regression.py` |
 
 Execution model in one line: **buy fill = `open·(1 + slippage)`, sell fill = `open·(1 − slippage)`,
 fee = `bps · notional` on each side, fractional shares, long-only, end-of-data mark-to-market.**
@@ -117,16 +118,16 @@ combined by a single `logic` (`AND`/`OR`). A condition is `{left, operator, righ
 - **Operators**: `>`, `<`, `>=`, `<=`, `crosses_above`, `crosses_below`.
 - **Indicators**: `SMA`, `EMA`, `RSI`, `ADX`, `ATR` (unknown → `400`).
 
-Example — RSI oversold with a trend filter (the seeded demo):
+Example — RSI(2) mean reversion with a trend filter (the seeded demo, ~38 trades on SPY):
 
 ```json
 {
   "entry": {"logic": "AND", "conditions": [
-    {"left": {"type": "indicator", "name": "RSI", "params": {"window": 14}}, "operator": "<", "right": {"type": "value", "value": 35}},
+    {"left": {"type": "indicator", "name": "RSI", "params": {"window": 2}}, "operator": "<", "right": {"type": "value", "value": 15}},
     {"left": {"type": "price", "field": "close"}, "operator": ">", "right": {"type": "indicator", "name": "SMA", "params": {"window": 200}}}
   ]},
   "exit": {"logic": "OR", "conditions": [
-    {"left": {"type": "indicator", "name": "RSI", "params": {"window": 14}}, "operator": ">", "right": {"type": "value", "value": 55}}
+    {"left": {"type": "indicator", "name": "RSI", "params": {"window": 2}}, "operator": ">", "right": {"type": "value", "value": 70}}
   ]}
 }
 ```
@@ -197,7 +198,7 @@ Measured on the committed SPY fixture (1258 daily bars, RSI + SMA(200) strategy)
 | Engine backtest latency | **~15 ms** mean / ~14 ms p50 per run (1258 bars) |
 | Engine throughput | **~65 backtests/sec/core** (synchronous) |
 | API `POST /api/backtests/` | ~40–60 ms warm (uncached); ~40 ms cached; first request ~1.4 s (cold worker imports) |
-| Tests | **68 passing** |
+| Tests | **73 passing** |
 | Coverage | **88%** overall; engine core 93–100% |
 
 (Reproduce latency with the snippet in the engine docstrings or the `engine.service.execute_backtest`
@@ -208,7 +209,7 @@ path; coverage via `pytest --cov`.)
 ## Testing
 
 ```bash
-pytest                                   # all 68 tests
+pytest                                   # all 73 tests
 pytest --cov --cov-report=term-missing   # with coverage
 ```
 
@@ -267,9 +268,9 @@ Honest scope boundaries (correctness over breadth):
   dividend yield (see `data/README.md`).
 - **Single-symbol backtests.** One symbol per backtest in Phase 1; the data model already stores a
   `universe` list for a multi-symbol extension.
+- **Single timeframe.** Daily bars only — no intraday or multi-timeframe support. ("Next bar" is the
+  next daily row.)
 - **Long-only.** Short-selling is a Phase 2 toggle.
-- **Tearsheet annualization.** The numeric `metrics` use an explicit `periods_per_year` (252 by
-  default); the QuantStats HTML tearsheet annualizes at 252 regardless of asset.
 - **Best-effort concurrency.** The Phase 1 run path is synchronous; two truly-simultaneous identical
   submissions could both compute (worst case: redundant work). Async jobs + locking are Phase 2.
 - **Library note.** Metrics use `quantstats-lumi`, the maintained QuantStats fork (the original is

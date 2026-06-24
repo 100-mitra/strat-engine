@@ -14,17 +14,19 @@ from apps.strategies.models import Strategy
 
 DEMO_USERNAME = "demo"
 DEMO_PASSWORD = "demo-pass-12345"  # noqa: S105 - intentional, documented demo credential
-DEMO_STRATEGY_NAME = "RSI oversold + SMA200 trend filter"
+DEMO_STRATEGY_NAME = "RSI(2) mean reversion + SMA200 trend filter"
 
-# Entry: RSI(14) < 35 AND close > SMA(200). Exit: RSI(14) > 55.
+# A Connors-style mean-reversion strategy that trades frequently enough for a credible tearsheet
+# (~38 round trips on SPY 2019-2023). Entry: RSI(2) < 15 AND close > SMA(200) (buy short-term dips
+# only while the long-term trend is up). Exit: RSI(2) > 70 (exit once the bounce is overbought).
 DEMO_RULES = {
     "entry": {
         "logic": "AND",
         "conditions": [
             {
-                "left": {"type": "indicator", "name": "RSI", "params": {"window": 14}},
+                "left": {"type": "indicator", "name": "RSI", "params": {"window": 2}},
                 "operator": "<",
-                "right": {"type": "value", "value": 35},
+                "right": {"type": "value", "value": 15},
             },
             {
                 "left": {"type": "price", "field": "close"},
@@ -37,9 +39,9 @@ DEMO_RULES = {
         "logic": "OR",
         "conditions": [
             {
-                "left": {"type": "indicator", "name": "RSI", "params": {"window": 14}},
+                "left": {"type": "indicator", "name": "RSI", "params": {"window": 2}},
                 "operator": ">",
-                "right": {"type": "value", "value": 55},
+                "right": {"type": "value", "value": 70},
             }
         ],
     },

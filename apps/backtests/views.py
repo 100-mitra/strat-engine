@@ -219,6 +219,10 @@ class BacktestViewSet(
             [p["equity"] for p in points],
             index=pd.to_datetime([p["date"] for p in points]),
         )
-        returns = equity.pct_change().fillna(0.0)
-        html = generate_tearsheet_html(returns, title=f"StratEngine — {backtest.symbol}")
+        returns = equity.pct_change().dropna()  # drop the undefined first-bar return
+        html = generate_tearsheet_html(
+            returns,
+            title=f"StratEngine — {backtest.symbol}",
+            periods_per_year=backtest.periods_per_year,
+        )
         return HttpResponse(html, content_type="text/html")

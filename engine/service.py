@@ -97,11 +97,11 @@ def execute_backtest(
         symbol=symbol,
     )
 
-    metrics = compute_metrics(run.equity_curve, run.returns, run.trades, periods_per_year=periods)
+    metrics = compute_metrics(run.equity_curve, run.trades, periods_per_year=periods)
     oos = run_params.get("oos_split_date")
     if oos:
         metrics["oos"] = compute_split_metrics(
-            run.equity_curve, run.returns, run.trades, oos, periods_per_year=periods
+            run.equity_curve, run.trades, oos, periods_per_year=periods
         )
 
     return BacktestOutput(
