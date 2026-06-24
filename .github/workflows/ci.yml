@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: stratengine
+          POSTGRES_USER: stratengine
+          POSTGRES_PASSWORD: stratengine
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stratengine"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://stratengine:stratengine@localhost:5432/stratengine
+      SECRET_KEY: ci-insecure-key
+      DEBUG: "1"
+      MPLBACKEND: Agg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # Install the exact, fully-pinned environment (same set Docker uses) for reproducible CI.
+      - name: Install dependencies
+        run: pip install -r requirements.lock
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (black)
+        run: black --check .
+
+      - name: Tests (pytest + coverage)
+        run: pytest --cov --cov-report=term-missing --cov-report=xml

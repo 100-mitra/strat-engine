@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: stratengine
+      POSTGRES_USER: stratengine
+      POSTGRES_PASSWORD: stratengine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stratengine"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgres://stratengine:stratengine@db:5432/stratengine
+      SECRET_KEY: dev-insecure-key-change-me
+      DEBUG: "1"
+      ALLOWED_HOSTS: "*"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
