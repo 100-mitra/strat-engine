@@ -11,9 +11,29 @@ swappable abstractions, strict validation, reproducible/idempotent runs, and —
 **correctness** (no look-ahead bias, modeled costs, out-of-sample reporting). It is a
 paper/historical-data-only research tool: no real orders, no money, no AI/ML.
 
+## Live demo
+
+**https://web-production-99f9d7.up.railway.app** (Railway; the instance may cold-start on the first
+hit). It is pre-seeded, so you can run a backtest immediately:
+
+- Demo login — username `demo`, password `demo-pass-12345`
+- Seeded strategy is **id 1** (RSI(2) mean reversion + SMA(200) trend filter, ~38 trades on SPY)
+
+```bash
+BASE=https://web-production-99f9d7.up.railway.app
+curl -s $BASE/healthz/
+TOKEN=$(curl -s -X POST $BASE/api/auth/token/ -H "Content-Type: application/json" \
+  -d '{"username":"demo","password":"demo-pass-12345"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+# run the seeded backtest with an in/out-of-sample split
+curl -s -X POST $BASE/api/backtests/ -H "Authorization: Token $TOKEN" -H "Content-Type: application/json" \
+  -d '{"strategy": 1, "oos_split_date": "2022-01-01"}'
+# then open  $BASE/api/backtests/1/tearsheet/  (sending the Authorization header) for the report
+```
+
 ---
 
 ## Table of contents
+- [Live demo](#live-demo)
 - [Architecture](#architecture)
 - [Correctness guarantees](#correctness-guarantees)
 - [Quickstart](#quickstart)
@@ -241,12 +261,15 @@ Postgres. Each runs migrations and `seed_demo` automatically so the live demo is
 4. Get the demo token: Render **Shell** → `python manage.py seed_demo` (also run automatically
    pre-deploy).
 
-### Railway (`railway.json`)
-1. Push to GitHub.
-2. railway.com → **New Project → Deploy from GitHub repo**. Add a **PostgreSQL** plugin; Railway
-   injects `DATABASE_URL`. Set `SECRET_KEY` and `DEBUG=0` in the service variables.
-3. Railway builds the Dockerfile and runs the start command (migrate via entrypoint, then
-   `seed_demo` + gunicorn on `$PORT`). Live URL: `https://<service>.up.railway.app`.
+### Railway (`railway.json`)  — this is what the live demo runs on
+1. Push to GitHub (or deploy the local dir with `railway up`).
+2. railway.com → **New Project** → add a **PostgreSQL** service, and a service for this repo
+   (Dockerfile build). On the web service set variables: `DATABASE_URL=${{Postgres.DATABASE_URL}}`,
+   a random `SECRET_KEY`, `DEBUG=0`, `ALLOWED_HOSTS=*`, and **`PORT=8000`** (Railway routes to this
+   port; it does not inject `PORT` itself).
+3. The image's entrypoint runs `migrate` + `seed_demo`, then gunicorn on `$PORT` — so there is **no**
+   custom start command (a start command would bypass the entrypoint). Generate a domain with
+   **target port 8000**. Live URL: `https://<service>.up.railway.app`.
 
 ### AWS (stretch note)
 The same container runs on ECS Fargate (or App Runner) behind an ALB with RDS PostgreSQL and
