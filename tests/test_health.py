@@ -21,6 +21,15 @@ def test_healthz_requires_no_auth():
     assert resp.status_code == 200
 
 
+def test_index_landing_page():
+    resp = APIClient().get("/")
+    assert resp.status_code == 200
+    assert resp["Content-Type"].startswith("text/html")
+    body = resp.content.decode()
+    assert "StratEngine" in body
+    assert "/api/auth/token/" in body
+
+
 def test_engine_version_importable():
     from engine import ENGINE_VERSION
 
