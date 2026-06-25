@@ -37,6 +37,9 @@ coverage.xml
 # Generated tearsheets (regenerated on demand)
 /data/tearsheets/
 
+# Pre-rendered sample metrics + tearsheet (generated at build by `manage.py render_sample`)
+/apps/core/static/sample/
+
 # IDE / OS
 .idea/
 .vscode/

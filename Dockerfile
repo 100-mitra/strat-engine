@@ -26,7 +26,11 @@ COPY . .
 # don't preserve the +x bit, so set it explicitly rather than relying on the source file's mode.
 RUN chmod +x docker-entrypoint.sh
 
-# Collect static assets (Django admin + DRF browsable API) for WhiteNoise to serve.
+# Pre-render the seeded strategy's sample metrics + tearsheet (no DB needed) so the landing page
+# shows real numbers and a one-click tearsheet. Must run before collectstatic.
+RUN SECRET_KEY=build-time DEBUG=0 python manage.py render_sample
+
+# Collect static assets (Django admin + DRF browsable API + the sample tearsheet) for WhiteNoise.
 RUN SECRET_KEY=build-time DEBUG=0 python manage.py collectstatic --noinput
 
 EXPOSE 8000
